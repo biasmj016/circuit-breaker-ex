@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.abcms'
+version = '0.0.1-SNAPSHOT'
+description = 'circuit_breaker_ex'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.3.0'
+    // Spring Boot 4 dropped spring-boot-starter-aop; AspectJ weaver is needed so @Aspect
+    // proxying works for both resilience4j's @CircuitBreaker and our own aspect.
+    implementation 'org.aspectj:aspectjweaver'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

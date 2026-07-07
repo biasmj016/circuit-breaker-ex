@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: circuit_breaker_ex
+
+resilience4j:
+  # 상태전이 핸들러 자동 구독 스위치 (false 로 두면 onOpen/onClose 액션이 실행되지 않음)
+  transition-dispatcher:
+    enabled: true
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 3s
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      exchangeRate:
+        base-config: default
+        record-exceptions:
+          - com.abcms.circuitbreaker.exchangerate.client.exception.ExternalApiException
+        ignore-exceptions:
+          - com.abcms.circuitbreaker.common.circuitbreaker.CircuitBreakerOpenException
