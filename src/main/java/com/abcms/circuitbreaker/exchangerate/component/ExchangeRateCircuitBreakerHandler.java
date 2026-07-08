@@ -1,6 +1,7 @@
 package com.abcms.circuitbreaker.exchangerate.component;
 
-import com.abcms.circuitbreaker.common.circuitbreaker.CircuitBreakerTransitionHandler;
+import static com.abcms.circuitbreaker.common.CircuitBreakerNameConstants.CIRCUIT_BREAKER_EXCHANGERATE;
+import com.abcms.circuitbreaker.common.CircuitBreakerTransitionHandler;
 import com.abcms.circuitbreaker.exchangerate.client.ExchangeRateClient;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker.Metrics;
@@ -10,8 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * exchangeRate CircuitBreaker 의 상태 전이 시 실행할 비즈니스 액션.
- * OPEN 시 회복을 서킷 브레이커 자동복구(HALF_OPEN→CLOSED)에 온전히 맡기므로 별도 킬스위치를 두지 않고, 여기서는 전이 시점을 로그로만 남긴다.
+ * exchangeRate CircuitBreaker 핸들러.
+ * 예제이기 떄문에 상태 전이 시 로그만 남긴다.
  */
 @Slf4j
 @Component
@@ -22,7 +23,7 @@ public class ExchangeRateCircuitBreakerHandler implements CircuitBreakerTransiti
 
     @Override
     public String circuitBreakerName() {
-        return ExchangeRateClient.CIRCUIT_BREAKER_NAME;
+        return CIRCUIT_BREAKER_EXCHANGERATE;
     }
 
     @Override
@@ -70,6 +71,6 @@ public class ExchangeRateCircuitBreakerHandler implements CircuitBreakerTransiti
     }
 
     private CircuitBreaker circuitBreaker() {
-        return circuitBreakerRegistry.circuitBreaker(ExchangeRateClient.CIRCUIT_BREAKER_NAME);
+        return circuitBreakerRegistry.circuitBreaker(CIRCUIT_BREAKER_EXCHANGERATE);
     }
 }

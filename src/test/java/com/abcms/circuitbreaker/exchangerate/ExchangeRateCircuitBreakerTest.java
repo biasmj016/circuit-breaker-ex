@@ -1,5 +1,6 @@
 package com.abcms.circuitbreaker.exchangerate;
 
+import static com.abcms.circuitbreaker.common.CircuitBreakerNameConstants.CIRCUIT_BREAKER_EXCHANGERATE;
 import static io.github.resilience4j.circuitbreaker.CircuitBreaker.State.CLOSED;
 import static io.github.resilience4j.circuitbreaker.CircuitBreaker.State.HALF_OPEN;
 import static io.github.resilience4j.circuitbreaker.CircuitBreaker.State.OPEN;
@@ -7,10 +8,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.abcms.circuitbreaker.common.circuitbreaker.CircuitBreakerOpenException;
+import com.abcms.circuitbreaker.common.OutageSimulator;
+import com.abcms.circuitbreaker.common.CircuitBreakerOpenException;
 import com.abcms.circuitbreaker.exchangerate.client.ExchangeRateClient;
 import com.abcms.circuitbreaker.exchangerate.client.response.ExchangeRateApiResponse;
-import com.abcms.circuitbreaker.exchangerate.component.OutageSimulator;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker.State;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -40,7 +41,7 @@ class ExchangeRateCircuitBreakerTest {
     @BeforeEach
     void 회로를_초기화한다() {
         circuitBreaker().reset();
-        externalApi.set(false);
+        externalApi.recoverAll();
     }
 
     @Nested
@@ -63,7 +64,7 @@ class ExchangeRateCircuitBreakerTest {
 
         @BeforeEach
         void 외부_장애가_임계치까지_이어진다() {
-            externalApi.set(true);
+            externalApi.breakDown(CIRCUIT_BREAKER_EXCHANGERATE);
             failUntilOpen();
         }
 
@@ -78,7 +79,7 @@ class ExchangeRateCircuitBreakerTest {
         void rejectsFastWithCommonException() {
             assertThatThrownBy(() -> exchangeRateClient.fetchRate("USD", "KRW"))
                 .isInstanceOf(CircuitBreakerOpenException.class)
-                .hasMessageContaining(ExchangeRateClient.CIRCUIT_BREAKER_NAME);
+                .hasMessageContaining(CIRCUIT_BREAKER_EXCHANGERATE);
         }
     }
 
@@ -89,10 +90,10 @@ class ExchangeRateCircuitBreakerTest {
         @Test
         @DisplayName("프로브가 성공하면 사람 개입 없이 스스로 닫힌다")
         void closesItself() {
-            externalApi.set(true);
+            externalApi.breakDown(CIRCUIT_BREAKER_EXCHANGERATE);
             failUntilOpen();
 
-            externalApi.set(false);
+            externalApi.recover(CIRCUIT_BREAKER_EXCHANGERATE);
             circuitBreaker().transitionToHalfOpenState();
             assertThat(state()).isEqualTo(HALF_OPEN);
 
@@ -115,7 +116,7 @@ class ExchangeRateCircuitBreakerTest {
     }
 
     private CircuitBreaker circuitBreaker() {
-        return circuitBreakerRegistry.circuitBreaker(ExchangeRateClient.CIRCUIT_BREAKER_NAME);
+        return circuitBreakerRegistry.circuitBreaker(CIRCUIT_BREAKER_EXCHANGERATE);
     }
 
     private State state() {

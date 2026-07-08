@@ -24,4 +24,10 @@ resilience4j:
         record-exceptions:
           - com.abcms.circuitbreaker.exchangerate.client.exception.ExternalApiException
         ignore-exceptions:
-          - com.abcms.circuitbreaker.common.circuitbreaker.CircuitBreakerOpenException
+          - com.abcms.circuitbreaker.common.CircuitBreakerOpenException
+      notification:
+        base-config: default
+        record-exceptions:
+          - com.abcms.circuitbreaker.notification.client.exception.NotificationApiException
+        ignore-exceptions:
+          - com.abcms.circuitbreaker.common.CircuitBreakerOpenException

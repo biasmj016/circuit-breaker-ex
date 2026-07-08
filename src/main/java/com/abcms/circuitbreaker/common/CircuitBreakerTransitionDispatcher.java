@@ -1,4 +1,4 @@
-package com.abcms.circuitbreaker.common.circuitbreaker;
+package com.abcms.circuitbreaker.common;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker.State;
@@ -11,11 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * 등록된 모든 {@link CircuitBreakerTransitionHandler} 구현체를 {@link CircuitBreakerRegistry} 의
- * 상태전이 이벤트에 자동 구독시킨다.
- *
- * <p>{@code resilience4j.transition-dispatcher.enabled=false} 로 두면 (예: 테스트/로컬) 자동 액션이
- * 실행되지 않는다. 값이 없으면 기본적으로 활성화된다.
+ * 등록된 모든 {@link CircuitBreakerTransitionHandler} 구현체를 {@link CircuitBreakerRegistry} 의 상태전이 이벤트에 자동 등록.
  */
 @Slf4j
 @Component
@@ -33,8 +29,7 @@ public class CircuitBreakerTransitionDispatcher {
     void subscribe() {
         for (CircuitBreakerTransitionHandler handler : handlers) {
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(handler.circuitBreakerName());
-            circuitBreaker.getEventPublisher()
-                .onStateTransition(event -> handle(handler, event.getStateTransition().getToState()));
+            circuitBreaker.getEventPublisher().onStateTransition(event -> handle(handler, event.getStateTransition().getToState()));
             log.info("CircuitBreakerTransitionHandler subscribed: name={}", handler.circuitBreakerName());
         }
     }

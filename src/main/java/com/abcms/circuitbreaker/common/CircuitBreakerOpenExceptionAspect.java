@@ -1,4 +1,4 @@
-package com.abcms.circuitbreaker.common.circuitbreaker;
+package com.abcms.circuitbreaker.common;
 
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -10,11 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * {@link io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker} 어노테이션이 붙은 빈에서
- * OPEN 상태로 거부된 호출의 {@link CallNotPermittedException} 을 공통 {@link CircuitBreakerOpenException}
- * 으로 변환한다.
- *
- * <p>resilience4j 의 CircuitBreaker AOP 보다 바깥(outer)에서 동작해야 {@code CallNotPermittedException}
- * 을 가로챌 수 있으므로 {@link Ordered#HIGHEST_PRECEDENCE} 로 둔다.
+ * OPEN 상태로 거부된 호출의 {@link CallNotPermittedException} 을 공통 {@link CircuitBreakerOpenException}으로 변환
  */
 @Aspect
 @Component
