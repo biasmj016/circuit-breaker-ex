@@ -6,11 +6,10 @@ import static io.github.resilience4j.circuitbreaker.CircuitBreaker.State.HALF_OP
 import static io.github.resilience4j.circuitbreaker.CircuitBreaker.State.OPEN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.abcms.circuitbreaker.common.OutageSimulator;
-import com.abcms.circuitbreaker.common.CircuitBreakerOpenException;
 import com.abcms.circuitbreaker.exchangerate.client.ExchangeRateClient;
+import com.abcms.circuitbreaker.exchangerate.client.exception.UnsupportedCurrencyException;
 import com.abcms.circuitbreaker.exchangerate.client.response.ExchangeRateApiResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker.State;
@@ -23,11 +22,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-@DisplayName("환율 API 서킷 브레이커")
+@DisplayName("환율 API 서킷 브레이커 (읽기 → 회로 열리면 degrade)")
 class ExchangeRateCircuitBreakerTest {
 
-    private static final int CALLS_TO_OPEN = 5;
-    private static final int HALF_OPEN_PROBES = 3;
+    private static final int CALLS_TO_OPEN = 5;      // minimum-number-of-calls
+    private static final int HALF_OPEN_PROBES = 3;   // permitted-number-of-calls-in-half-open-state
 
     @Autowired
     private ExchangeRateClient exchangeRateClient;
@@ -49,11 +48,12 @@ class ExchangeRateCircuitBreakerTest {
     class WhenHealthy {
 
         @Test
-        @DisplayName("환율을 그대로 반환하고 회로는 닫힌 채 유지된다")
+        @DisplayName("실시간 환율을 반환하고 회로는 닫힌 채 유지된다")
         void passesThrough() {
             ExchangeRateApiResponse response = exchangeRateClient.fetchRate("USD", "KRW");
 
             assertThat(response.rate()).isEqualByComparingTo("1385.20");
+            assertThat(response.fromFallback()).isFalse();
             assertThat(state()).isEqualTo(CLOSED);
         }
     }
@@ -63,9 +63,10 @@ class ExchangeRateCircuitBreakerTest {
     class WhenFailing {
 
         @BeforeEach
-        void 외부_장애가_임계치까지_이어진다() {
+        void 정상값을_한번_받아둔_뒤_외부_장애가_임계치까지_이어진다() {
+            exchangeRateClient.fetchRate("USD", "KRW"); // 마지막 정상값 확보
             externalApi.breakDown(CIRCUIT_BREAKER_EXCHANGERATE);
-            failUntilOpen();
+            callUntilOpen();
         }
 
         @Test
@@ -75,23 +76,40 @@ class ExchangeRateCircuitBreakerTest {
         }
 
         @Test
-        @DisplayName("이후 호출은 외부로 나가지 않고 공통 예외로 즉시 차단된다")
-        void rejectsFastWithCommonException() {
-            assertThatThrownBy(() -> exchangeRateClient.fetchRate("USD", "KRW"))
-                .isInstanceOf(CircuitBreakerOpenException.class)
-                .hasMessageContaining(CIRCUIT_BREAKER_EXCHANGERATE);
+        @DisplayName("회로가 열려도 예외 대신 마지막 정상값으로 degrade 된다 (fromFallback)")
+        void degradesWhenOpen() {
+            ExchangeRateApiResponse response = exchangeRateClient.fetchRate("USD", "KRW");
+
+            assertThat(response.fromFallback()).isTrue();
+            assertThat(response.rate()).isEqualByComparingTo("1385.20"); // 마지막 정상값
         }
     }
 
     @Nested
-    @DisplayName("열린 회로에서 외부가 회복되면 (OPEN → HALF_OPEN → CLOSED)")
+    @DisplayName("비즈니스 오류(지원하지 않는 통화)는")
+    class WhenBusinessError {
+
+        @Test
+        @DisplayName("반복돼도 회로를 열지 않는다 (외부는 정상이므로)")
+        void doesNotOpenCircuit() {
+            for (int i = 0; i < CALLS_TO_OPEN + 3; i++) {
+                assertThatThrownBy(() -> exchangeRateClient.fetchRate("USD", "XXX"))
+                    .isInstanceOf(UnsupportedCurrencyException.class);
+            }
+
+            assertThat(state()).isEqualTo(CLOSED);
+        }
+    }
+
+    @Nested
+    @DisplayName("외부가 회복되면 (OPEN → HALF_OPEN → CLOSED)")
     class WhenRecovering {
 
         @Test
         @DisplayName("프로브가 성공하면 사람 개입 없이 스스로 닫힌다")
         void closesItself() {
             externalApi.breakDown(CIRCUIT_BREAKER_EXCHANGERATE);
-            failUntilOpen();
+            callUntilOpen();
 
             externalApi.recover(CIRCUIT_BREAKER_EXCHANGERATE);
             circuitBreaker().transitionToHalfOpenState();
@@ -103,9 +121,10 @@ class ExchangeRateCircuitBreakerTest {
         }
     }
 
-    private void failUntilOpen() {
+    // 회로가 열리면 fetchRate 는 예외 대신 stale 을 반환하므로 catchThrowable 이 필요 없다.
+    private void callUntilOpen() {
         for (int i = 0; i < CALLS_TO_OPEN; i++) {
-            catchThrowable(() -> exchangeRateClient.fetchRate("USD", "KRW"));
+            exchangeRateClient.fetchRate("USD", "KRW");
         }
     }
 
