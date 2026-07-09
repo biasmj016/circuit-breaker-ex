@@ -51,7 +51,7 @@ public class ExchangeRateClient {
     private ExchangeRateApiResponse degraded(String base, String quote) {
         BigDecimal cached = lastKnownRate.get(pair(base, quote));
         log.warn("exchange-rate degraded to last-known value: {}->{} = {}", base, quote, cached);
-        return ExchangeRateApiResponse.stale(base, quote, cached);
+        return ExchangeRateApiResponse.fromFallback(base, quote, cached);
     }
 
     private BigDecimal mockRate(String base, String quote) {
